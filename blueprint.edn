@@ -1,0 +1,10 @@
+{:itonami.blueprint/id "cloud-itonami-isco-5223"
+ :itonami.blueprint/name "Independent Retail Floor Sales Practice"
+ :itonami.blueprint/isco-08 "5223"
+ :itonami.blueprint/domain :retail/floor-sales
+ :itonami.blueprint/license "AGPL-3.0-or-later"
+ :itonami.blueprint/social-impact [:local-jobs :customer-access :small-retail-viability]
+ :itonami.blueprint/governor :retail-floor-governor
+ :itonami.blueprint/robotics true
+ :itonami.blueprint/required-technologies [:robotics :forms :telemetry :audit-ledger :bpmn]
+ :itonami.blueprint/status :public-oss}
