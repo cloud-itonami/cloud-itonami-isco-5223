@@ -1,0 +1,34 @@
+;; What this vertical's robot physically does, declared for
+;; kotoba.robotics.process (kotoba-lang/robotics). `kbb -M:physics` runs it.
+;;
+;; README "Robotics premise": a shelf-scanning robot performs stock checks,
+;; price-tag verification and restock flagging on the sales floor. Declared
+;; here: one aisle scanned end to end (camera mast, scanning speed limited
+;; by image blur), and the same tall, narrow robot stopping for a customer
+;; stepping out in front of it.
+;;
+;; Every number without a cited source is marked `estimate` in its :basis.
+;; Replacing an estimate with a sourced value is this bot's growth work.
+{:physics/schema "itonami.physical-ai.spec.v1"
+ :repo "cloud-itonami/cloud-itonami-isco-5223"
+ :cases
+ [{:id :aisle-scan-pass
+   :kind :transport
+   :procedure "shelf-scanning robot drives one aisle end to end at scanning speed, reading shelf stock and price tags"
+   :params {:mass-kg 55.0 :payload-kg 0.0 :distance-m 25.0 :a-max-mps2 0.3
+            :brake-decel-mps2 0.8 :drive-force-n 100.0 :crr 0.015
+            :cog-height-m 0.90 :support-half-length-m 0.22}
+   :sweep {:param :v-max-mps :values [0.2 0.3 0.4 0.6 0.8]}
+   :quantity :cycle-time-s
+   :limit {:max 90.0 :basis "estimate: per-aisle budget so a 20-aisle shop is scanned before opening; scanning speed range bounded by image blur is also an estimate"}
+   :boundary {:lo 0.1 :hi 1.0}}
+  {:id :customer-stop
+   :kind :transport
+   :procedure "tall scanning robot brakes to a stop when a customer steps into the aisle in front of it"
+   :params {:mass-kg 55.0 :payload-kg 0.0 :distance-m 10.0 :v-max-mps 0.6 :a-max-mps2 0.3
+            :drive-force-n 100.0 :crr 0.015
+            :cog-height-m 0.90 :support-half-length-m 0.22}
+   :sweep {:param :brake-decel-mps2 :values [0.5 0.8 1.2 1.6 2.0]}
+   :quantity :min-tipover-margin
+   :limit {:min 0.25 :basis "estimate: keep a quarter of the static tip-over moment for floor mats, thresholds and a customer leaning on the mast"}
+   :boundary {:lo 0.3 :hi 3.0}}]}
