@@ -1,7 +1,8 @@
 (ns retail-floor.governor-test
   (:require [kotoba.test :refer [deftest is testing]]
             [retail-floor.store :as store]
-            [retail-floor.governor :as governor]))
+            [retail-floor.governor :as governor]
+            [retail-floor.facts :as facts]))
 
 (defn- fresh-store []
   (let [st (store/mem-store)]
@@ -85,3 +86,53 @@
           "欠落した :confidence は 0.0 であって 1.0 ではない")
       (is (not= :proceed (:decision result))
           "確信度不明の提案が自動で通ってはならない"))))
+
+(defn- store-with-sake []
+  (let [st (fresh-store)]
+    (store/register-sku! st {:sku-id "sake-1" :name "純米酒 720ml"
+                             :list-price-cents 150000 :restricted :alcohol})
+    st))
+
+(defn- sake-sale [extra]
+  (merge {:action :sale :sku-id "sake-1" :qty 1 :safety-class :low
+          :effect :propose :confidence 0.9}
+         extra))
+
+(deftest holds-an-alcohol-sale-without-a-confirmed-age
+  (testing "第一条 第四項: 酒類の販売は年齢ノ確認を名乗らなければ通さない"
+    (let [env (governor/env-for-store (store-with-sake))
+          result (governor/assess env (sake-sale {}))
+          v (first (filter #(= :age-confirmation (:rule %)) (:violations result)))]
+      (is (= :hold (:decision result)))
+      (is (some? v))
+      (is (= "第一条 第四項" (:section v)))
+      (is (= facts/law-url (:source-url v))))))
+
+(deftest holds-an-alcohol-sale-to-a-confirmed-nineteen-year-old
+  (testing "第一条 第三項: 確認した年齢が二十歳未満なら販売しない"
+    (let [env (governor/env-for-store (store-with-sake))
+          result (governor/assess env (sake-sale {:buyer-confirmed-age 19}))]
+      (is (= :hold (:decision result)))
+      (is (= [:under-twenty] (mapv :rule (:violations result))))
+      (is (= "第一条 第三項" (:section (first (:violations result))))))))
+
+(deftest proceeds-on-an-alcohol-sale-at-exactly-twenty
+  (testing "境界ちょうど: 二十歳は二十歳未満ではない"
+    (let [env (governor/env-for-store (store-with-sake))
+          result (governor/assess env (sake-sale {:buyer-confirmed-age 20}))]
+      (is (= :proceed (:decision result)))
+      (is (= [] (:violations result))))))
+
+(deftest a-non-alcohol-sale-needs-no-age
+  (testing "制限の無い sku の販売に年齢は要らない（規則が広がりすぎていない）"
+    (let [env (governor/env-for-store (fresh-store))
+          result (governor/assess env {:action :sale :sku-id "sku-1" :safety-class :low
+                                       :effect :propose :confidence 0.9})]
+      (is (= :proceed (:decision result))))))
+
+(deftest the-quoted-paragraphs-are-the-ones-enforced
+  (is (= 20 facts/adult-age))
+  (is (re-find #"年齢ノ確認" (:source-quote facts/confirm-age)))
+  (is (re-find #"二十歳未満ノ者ノ飲用ニ供スルコトヲ知リテ"
+               (:source-quote facts/no-knowing-sale-to-under-twenty)))
+  (is (re-find #"^https://laws\.e-gov\.go\.jp/" facts/law-url)))

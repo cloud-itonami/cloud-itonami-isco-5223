@@ -46,7 +46,7 @@ See [`docs/business-model.md`](docs/business-model.md) and
 
 ## Reference implementation
 
-`src/retail_floor/{store,governor}.cljc` is a minimal but real
+`src/retail_floor/{store,governor,facts}.cljk` is a minimal but real
 implementation of the Core Contract above (pure cljc, no external deps):
 
 - `retail-floor.store` — `Store` protocol + `MemStore`: skus, price
@@ -59,9 +59,16 @@ implementation of the Core Contract above (pure cljc, no external deps):
   safety-class); a deep discount always requires `:high`+ safety-class
   and thus `:human-approval` — it can never be auto-approved;
   low-confidence proposals also escalate.
+- `retail-floor.facts` — the rule the governor quotes rather than
+  recalls: 二十歳未満ノ者ノ飲酒ノ禁止ニ関スル法律 第一条 第三項・第四項 (e-Gov
+  法令 API, <https://laws.e-gov.go.jp/api/1/lawdata/211AC1000000020>). A
+  `:sale` of a sku registered `:restricted :alcohol` is held unless it
+  carries `:buyer-confirmed-age` (第四項, 年齢ノ確認), and held if that age
+  is under twenty (第三項). The hold carries `:section` and `:source-url`.
+  Tobacco is a separate statute and is not gated.
 
 ```bash
-kbb -M:test   # 8 tests, 13 assertions, green
+kbb -M:test   # 16 tests, 34 assertions, green
 ```
 
 This is what backs this repo's `:maturity :implemented` entry in

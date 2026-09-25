@@ -1,0 +1,38 @@
+(ns retail-floor.facts
+  "Disclosed facts the Retail Floor Governor enforces — each one quoted
+  verbatim from a fetched primary source, never recalled.
+
+  Source: 二十歳未満ノ者ノ飲酒ノ禁止ニ関スル法律（大正十一年法律第二十号）
+  第一条, as served by the e-Gov 法令 API.
+
+  Provenance (2026-09-25): GET of `law-url` returned 200,
+  text/xml;charset=UTF-8, 10,717 bytes, sha256
+  d3244660bd3f4c2c494c988f0473d88c958e01cde4a816b56c14575d8e1460a7, with
+  `<LawTitle>二十歳未満ノ者ノ飲酒ノ禁止ニ関スル法律` and
+  `<LawNum>大正十一年法律第二十号`. Each `:source-quote` is the text of the
+  numbered paragraph of `<Article Num=\"1\">` with tags stripped.
+
+  What is NOT here: 第一項 and 第二項 bind the drinker and the guardian, not
+  the seller. Tobacco (二十歳未満ノ者ノ喫煙ノ禁止ニ関スル法律) is a separate
+  statute and is not quoted, so a `:restricted :tobacco` sku is not gated.")
+
+(def law-url
+  "https://laws.e-gov.go.jp/api/1/lawdata/211AC1000000020")
+
+(def adult-age
+  "二十歳 — the age both paragraphs below are drawn at."
+  20)
+
+(def no-knowing-sale-to-under-twenty
+  "A seller who knows the buyer is under twenty may not sell."
+  {:source-url law-url
+   :section "第一条 第三項"
+   :source-quote "営業者ニシテ其ノ業態上酒類ヲ販売又ハ供与スル者ハ二十歳未満ノ者ノ飲用ニ供スルコトヲ知リテ酒類ヲ販売又ハ供与スルコトヲ得ス"})
+
+(def confirm-age
+  "The hard rule: an alcohol sale states the buyer's confirmed age.
+  年齢ノ確認 is named; 其ノ他ノ必要ナル措置 is open-ended and is not
+  something the governor can check, so only the confirmation is enforced."
+  {:source-url law-url
+   :section "第一条 第四項"
+   :source-quote "営業者ニシテ其ノ業態上酒類ヲ販売又ハ供与スル者ハ二十歳未満ノ者ノ飲酒ノ防止ニ資スル為年齢ノ確認其ノ他ノ必要ナル措置ヲ講ズルモノトス"})
