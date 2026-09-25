@@ -24,9 +24,14 @@
        `discount-threshold` below the sku's list price always requires
        :high or higher safety-class, forcing human sign-off; it is never
        auto-approved regardless of confidence.
+    4. Age confirmation — a sale of a sku registered `:restricted :alcohol`
+       must carry `:buyer-confirmed-age`, and that age must be at least
+       twenty (二十歳未満ノ者ノ飲酒ノ禁止ニ関スル法律 第一条 第三項・第四項,
+       quoted in `retail-floor.facts`). The hold carries `:source-url`.
   SOFT:
-    4. Confidence floor → escalate."
-  (:require [retail-floor.store :as store]))
+    5. Confidence floor → escalate."
+  (:require [retail-floor.store :as store]
+            [retail-floor.facts :as facts]))
 
 (def confidence-floor 0.6)
 (def discount-threshold 0.30)
@@ -44,8 +49,12 @@
        (> (- 1 (/ (:new-price-cents proposal) (double list-price-cents)))
           discount-threshold)))
 
+(defn- alcohol-sale? [found-sku proposal]
+  (and (= :sale (:action proposal))
+       (= :alcohol (:restricted found-sku))))
+
 (defn- hard-violations [{:keys [sku-fn]} proposal]
-  (let [{:keys [sku-id safety-class effect]} proposal
+  (let [{:keys [sku-id safety-class effect buyer-confirmed-age]} proposal
         found-sku (sku-fn sku-id)]
     (cond-> []
       (nil? found-sku)
@@ -59,7 +68,22 @@
            (< (safety-rank (or safety-class :none)) (safety-rank :high)))
       (conj {:rule :discount-safety
              :detail (str "list price から discount-threshold("
-                           discount-threshold ") を超える値下げ — :high 以上の safety-class が必須")}))))
+                           discount-threshold ") を超える値下げ — :high 以上の safety-class が必須")})
+
+      (and (alcohol-sale? found-sku proposal)
+           (not (number? buyer-confirmed-age)))
+      (conj {:rule :age-confirmation
+             :detail "酒類の販売に :buyer-confirmed-age が無い — 年齢ノ確認が必須"
+             :section (:section facts/confirm-age)
+             :source-url (:source-url facts/confirm-age)})
+
+      (and (alcohol-sale? found-sku proposal)
+           (number? buyer-confirmed-age)
+           (< buyer-confirmed-age facts/adult-age))
+      (conj {:rule :under-twenty
+             :detail (str "確認した年齢 " buyer-confirmed-age " は二十歳未満 — 酒類を販売できない")
+             :section (:section facts/no-knowing-sale-to-under-twenty)
+             :source-url (:source-url facts/no-knowing-sale-to-under-twenty)}))))
 
 (defn assess
   "Assess a proposal against `env` (a map with `:sku-fn` lookup, decoupled
